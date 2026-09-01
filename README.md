@@ -221,7 +221,7 @@ npm run dev
 ### 3.2. Backend
 - **Язык**: Python 3.10+
 - **Фреймворк**: FastAPI (Uvicorn)
-- **Парсинг**: PyPDF2,内置 open() для txt
+- **Парсинг**: PyPDF2,парсинг open() для txt
 
 ### 3.3. База данных
 - **Основная**: SQLite
