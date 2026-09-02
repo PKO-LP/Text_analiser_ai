@@ -78,12 +78,12 @@ npm run dev
 
 ## 👥 Команда разработки
 
-| Роль | Разработчик | 
-|------|-------------|
-| Team Lead & Backend | Чернаков Денис |
-| AI/ML Engineer | Татаринов Вячеслав |
-| Frontend Developer | Бобин Вадим |
-| DevOps & Integration | Шелков Данила |
+| Роль | Разработчик | github  | 
+|------|-------------|------|
+| Team Lead & Backend | Чернаков Денис | tigris8735| 
+| AI/ML Engineer | Татаринов Вячеслав | shinsetsuwhy |
+| Frontend Developer | Бобин Вадим | MadCat-Lon| 
+| DevOps & Integration | Шелков Данила | Dedyreti | 
 
 ---
 
