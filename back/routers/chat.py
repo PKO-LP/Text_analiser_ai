@@ -1,45 +1,45 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
-from models import ChatRequest
+from models import ChatRequest, ActionType
 from rag_engine import rag_engine
-
-"""
-Роутер для работы с чатом.
-Принимает вопросы пользователя и возвращает потоковый ответ (SSE) от ИИ.
-"""
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 
-@router.post("/stream")
-async def chat_stream(request: ChatRequest):
+@router.post("/analyze")
+async def analyze(request: ChatRequest):
     """
-    Эндпоинт для потоковой генерации ответа.
+    Универсальный эндпоинт для анализа документов.
 
     Принимает:
-        - query: текст вопроса
-        - file_ids: (опционально) список ID файлов для ограничения поиска
+        - action: "summary" или "context_search"
+        - query: текст запроса (обязательно для context_search)
+        - file_ids: список ID файлов (опционально)
 
     Возвращает:
-        Поток Server-Sent Events (SSE) с токенами ответа.
-        Каждое событие имеет вид: data: токен\n\n
-        По окончании отправляется data: [DONE]\n\n
+        Поток SSE с ответом от LM Studio.
     """
-    # Валидация: вопрос не должен быть пустым
-    if not request.query.strip():
-        raise HTTPException(status_code=400, detail="Query cannot be empty")
+    # Валидация: для context_search обязателен query
+    if request.action == ActionType.CONTEXT_SEARCH and not request.query:
+        raise HTTPException(
+            status_code=400,
+            detail="For 'context_search' action, 'query' field is required"
+        )
 
-    # Внутренний генератор, который будет выдавать SSE-события
+    # Для summary query не обязателен
+    if request.action == ActionType.SUMMARY:
+        # Если query не передан, используем заглушку
+        search_query = ""
+    else:
+        search_query = request.query
+
     async def generate():
-        # Запускаем RAG-пайплайн и получаем токены
         async for token in rag_engine.stream_answer(
-            request.query,
-            request.file_ids
+            action=request.action,
+            query=search_query,
+            file_ids=request.file_ids
         ):
-            # Формируем SSE-строку
             yield f"data: {token}\n\n"
-        # Сигнал завершения потока
         yield "data: [DONE]\n\n"
 
-    # Возвращаем StreamingResponse с типом text/event-stream
     return StreamingResponse(generate(), media_type="text/event-stream")
