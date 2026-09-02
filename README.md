@@ -60,13 +60,13 @@ npm run dev
 
 ## 📖 Документация
 
-Полная документация проекта доступна в папке [docs/](./docs/):
+Полная документация проекта доступна в папке [docs/](./documentation/):
 
-- [Бизнес-требования](./docs/01-business-requirements.md)
-- [Системный анализ](./docs/02-system-analysis.md)
-- [План архитектуры](./docs/03-architecture-plan.md)
-- [Техническое задание](./docs/04-technical-specification.md)
-- [План тестирования](./docs/05-testing-plan.md)
+- [Бизнес-требования](./documentation/br01.md)
+- [Системный анализ](./documentation/sa02.md)
+- [План архитектуры](./documentation/ap03.md)
+- [Техническое задание](./documentation/tt04.md)
+- [План тестирования](./documentation/tp05.md)
 
 ## 🛠 Технологический стек
 
@@ -80,10 +80,10 @@ npm run dev
 
 | Роль | Разработчик | 
 |------|-------------|
-| Team Lead & Backend | Разраб 1 |
-| AI/ML Engineer | Разраб 2 |
-| Frontend Developer | Веб-разработчик |
-| DevOps & Integration | Разраб 3 |
+| Team Lead & Backend | Чернаков Денис |
+| AI/ML Engineer | Татаринов Вячеслав |
+| Frontend Developer | Бобин Вадим |
+| DevOps & Integration | Шелков Данила |
 
 ---
 
