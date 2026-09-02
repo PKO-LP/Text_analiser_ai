@@ -80,10 +80,10 @@ npm run dev
 
 | Роль | Разработчик | 
 |------|-------------|
-| Team Lead & Backend | Разраб 1 |
-| AI/ML Engineer | Разраб 2 |
-| Frontend Developer | Веб-разработчик |
-| DevOps & Integration | Разраб 3 |
+| Team Lead & Backend | Чернаков Денис |
+| AI/ML Engineer | Татаринов Вячеслав |
+| Frontend Developer | Бобин Вадим |
+| DevOps & Integration | Шелков Данила |
 
 ---
 
