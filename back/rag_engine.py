@@ -88,14 +88,28 @@ class RAGEngine:
     async def stream_answer(self, action: str, query: str = None, file_ids: List[int] = None) -> AsyncGenerator[str, None]:
         """
         Генерация ответа в зависимости от действия.
-
         action: "summary" или "context_search"
         query: текст поиска (для context_search)
         file_ids: список ID файлов (если None — ищем по всем)
         """
-        # Шаг 1: ищем релевантные чанки
-        search_query = query if query else ""
-        results = await search_chunks(search_query, top_k=config.TOP_K)
+        # Валидация
+        if action == "context_search" and not query:
+            yield "Для поиска по контексту укажите текст запроса."
+            return
+
+        # Шаг 1: выбираем чанки
+        if action == "summary":
+            # Для сводки берём топ-K чанков (по всем файлам или выбранным)
+            if file_ids:
+                # Пока нет фильтрации по file_ids в БД, берём все и отфильтруем вручную
+                results = await search_chunks("a", top_k=50)  # 'a' есть почти везде
+                results = [r for r in results if r["file_id"] in file_ids][:config.TOP_K]
+            else:
+                # Берём первые top_k чанков из всех документов
+                results = await search_chunks("a", top_k=config.TOP_K)
+        else:
+            # Поиск по контексту — обычный FTS
+            results = await search_chunks(query, top_k=config.TOP_K)
 
         if not results:
             yield "Не найдено релевантной информации в загруженных документах."
@@ -104,29 +118,25 @@ class RAGEngine:
         # Шаг 2: собираем контекст
         context_parts = []
         for r in results:
-            context_parts.append(f"[Файл {r['file_id']}] {r['content']}")
+            context_parts.append(f"[Файл {r['file_id']}, фрагмент {r['chunk_index']}] {r['content']}")
         context = "\n\n".join(context_parts)
-
-        # Шаг 3: формируем минимальный промт в зависимости от действия
+        
+        # Шаг 3: формируем промпт
         if action == "summary":
-            # Краткий анализ всего документа
-            prompt = f"Файл:\n{context}\n\nЗадача: сделай краткий анализ этого текста. Выдели основные темы и ключевые идеи."
-
+            prompt = f"Проанализируй следующий текст и выдели основные темы и ключевые идеи:\n\n{context}"
         elif action == "context_search":
-            # Поиск по контексту с конкретным запросом
-            if not query:
-                yield "Для поиска по контексту укажите текст запроса."
-                return
-            prompt = f"Файл:\n{context}\n\nЗадача: найди в тексте информацию, связанную с запросом: '{query}'. Ответь кратко и по делу, используя только содержимое файла."
-
+            prompt = (
+                f"Контекст из документов:\n{context}\n\n"
+                f"Вопрос: {query}\n\n"
+                f"Ответь кратко и точно, используя только предоставленный контекст. "
+                f"Если ответа нет в контексте, скажи об этом."
+            )
         else:
-            # На всякий случай (если пришёл неизвестный action)
-            prompt = f"Файл:\n{context}\n\nВопрос: {query if query else 'сделай анализ'}"
+            prompt = f"Контекст:\n{context}\n\nВопрос: {query if query else 'Сделай анализ текста.'}"
 
-        # Шаг 4: отправляем в LM Studio (системный промт уже настроен в LM Studio)
+        # Шаг 4: отправляем в LM Studio
         async for token in lm_client.stream_completion(prompt):
             yield token
-
 
 # Единый экземпляр
 rag_engine = RAGEngine()
