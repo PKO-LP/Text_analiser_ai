@@ -1,86 +1,87 @@
-"""
-to do 
+import json
+import httpx
+from typing import AsyncGenerator
+from config import config
 
-ЗАГЛУШКА
-
-РАЗОБРАТЬ + ПОНЯТЬ + ПЕРЕДЕЛАТЬ !!!!!
-
-"""
-
-
-import json                     # Для парсинга JSON-ответов от LM Studio
-import asyncio                  # Для имитации задержек в заглушке
-from typing import AsyncGenerator  # Аннотация: генератор, выдающий строки
-import httpx                    # Асинхронный HTTP-клиент для реальных запросов
-from config import config       # Настройки (URL, модель)
-
-"""
-Клиент для взаимодействия с LM Studio.
-
-LM Studio предоставляет OpenAI-совместимый API.
-Мы отправляем POST-запрос с prompt и получаем потоковый ответ (stream=True).
-"""
 
 class LMClient:
     """
-    Клиент для общения с языковой моделью через HTTP.
+    Клиент для взаимодействия с LM Studio через OpenAI-compatible API.
+    Настроен под Qwen2.5-14B-Instruct с параметрами для RAG.
     """
 
-    def __init__(self, base_url: str = config.LM_STUDIO_URL):
-        """
-        Сохраняем базовый URL LM Studio (по умолчанию из конфига).
-        """
-        self.base_url = base_url
+    SYSTEM_PROMPT = (
+        "Ты — интеллектуальный ассистент для анализа документов. "
+        "Твоя задача — отвечать на вопросы пользователя строго на основе предоставленного контекста из загруженных документов. "
+        "Если ответ не содержится в контексте, честно скажи об этом. "
+        "Не придумывай факты, не используй внешние знания. "
+        "Отвечай на русском языке. Будь кратким, точным и структурированным. "
+        "При анализе выделяй ключевые темы и идеи."
+    )
+
+    def init(self, base_url: str = config.LM_STUDIO_URL):
+        # Убираем trailing slash, чтобы не дублировались слеши в URL
+        self.base_url = base_url.rstrip("/")
+        # Fallback на случай, если LM_MODEL не прописан в .env
+        self.model = getattr(config, "LM_MODEL", "Qwen2.5-14B-Instruct")
 
     async def stream_completion(self, prompt: str) -> AsyncGenerator[str, None]:
         """
-        Асинхронный генератор, который отправляет промпт в LM Studio
-        и выдаёт токены по одному (стриминг).
-
-        Сейчас здесь заглушка, которая эмулирует ответ.
-        Реальный код закомментирован и готов к использованию.
+        Отправляет промпт в LM Studio и стримит токены обратно.
+        При сетевой ошибке или проблеме с моделью выдаёт сообщение в поток вместо крэша.
         """
-        # ===== ЗАГЛУШКА (имитация ответа) =====
-        # Формируем фиктивный ответ, чтобы фронтенд мог тестировать SSE
-        fake_response = f"Это заглушка от LM Studio. Ваш запрос: '{prompt[:50]}...'"
-        # Разбиваем на слова и выдаём по одному с задержкой 0.1 сек
-        for word in fake_response.split():
-            yield word + " "     # Добавляем пробел для читаемости
-            await asyncio.sleep(0.1)  # Имитация задержки между токенами
+        payload = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": self.SYSTEM_PROMPT},
+                {"role": "user", "content": prompt}
+            ],
+            "stream": True,
+            "temperature": 0.3,   # низкая температура для точности RAG
+            "top_p": 0.9,         # стандартное значение
+            "max_tokens": 2048,   # лимит ответа
+        }
 
-        # ===== РЕАЛЬНЫЙ КОД (закомментирован, но готов к использованию) =====
-        """
-        # Отправляем запрос в LM Studio через httpx с потоковым режимом
-        async with httpx.AsyncClient() as client:
-            # Отправляем POST-запрос на /chat/completions (OpenAI-совместимый эндпоинт)
-            async with client.stream(
-                "POST",
-                f"{self.base_url}/chat/completions",
-                json={
-                    "model": config.LM_MODEL,          # Имя модели (из конфига)
-                    "messages": [{"role": "user", "content": prompt}],
-                    "stream": True,                    # Включаем стриминг
-                },
-                timeout=60.0  # Таймаут на случай, если модель долго отвечает
-            ) as response:
-                # Читаем ответ построчно
-                async for line in response.aiter_lines():
-                    # SSE-ответы начинаются с "data: "
-                    if line.startswith("data: "):
-                        data = line[6:]  # Убираем префикс "data: "
-                        if data == "[DONE]":  # Сигнал завершения
-                            break
-                        try:
-                            # Парсим JSON-фрагмент
-                            chunk = json.loads(data)
-                            # Извлекаем текст токена из структуры ответа
-                            token = chunk.get("choices", [{}])[0].get("delta", {}).get("content", "")
-                            if token:
-                                yield token  # Отдаём токен наружу
-                        except json.JSONDecodeError:
-                            # Если что-то пошло не так – игнорируем строку
+        try:
+            async with httpx.AsyncClient() as client:
+                async with client.stream(
+                    "POST",
+                    f"{self.base_url}/chat/completions",
+                    json=payload,
+                    timeout=120.0,
+                    headers={"Content-Type": "application/json"}
+                ) as response:
+                    # Если LM Studio вернул 4xx/5xx — сразу поймаем
+                    response.raise_for_status()
+
+                    async for line in response.aiter_lines():
+                        if not line.startswith("data: "):
                             continue
-        """
 
-# Создаём экземпляр клиента для использования в других модулях
+                        data = line[6:]
+                        if data == "[DONE]":
+                            break
+
+                        try:
+                            chunk = json.loads(data)
+                            delta = chunk.get("choices", [{}])[0].get("delta", {})
+                            token = delta.get("content", "")
+                            if token:
+                                yield token
+                        except (json.JSONDecodeError, IndexError, KeyError):
+                            # Пропускаем битые или служебные SSE-фреймы
+                            continue
+
+        except httpx.ConnectError:
+            yield "[Ошибка соединения: не удалось подключиться к LM Studio. Убедитесь, что сервер запущен и API включен.]"
+
+        except httpx.HTTPStatusError as e:
+            error_body = e.response.text[:300]
+            yield f"[Ошибка HTTP {e.response.status_code} от LM Studio: {error_body}]"
+
+        except Exception as e:
+            yield f"[Ошибка при обращении к модели: {str(e)}]"
+
+
+# Глобальный экземпляр для использования в rag_engine
 lm_client = LMClient()
