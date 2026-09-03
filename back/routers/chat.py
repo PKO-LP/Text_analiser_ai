@@ -8,10 +8,6 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 
 @router.post("/analyze")
 async def analyze(request: ChatRequest):
-    """
-    Универсальный эндпоинт для анализа документов.
-    Возвращает поток SSE с ответом от LM Studio.
-    """
     if request.action == ActionType.CONTEXT_SEARCH and not request.query:
         raise HTTPException(
             status_code=400,
@@ -25,6 +21,7 @@ async def analyze(request: ChatRequest):
                 query=request.query,
                 file_ids=request.file_ids
             ):
+                # Экранируем ВСЕ \n и \r, чтобы SSE-протокол не ломался
                 safe_token = token.replace("\n", "\\n").replace("\r", "\\r")
                 yield f"data: {safe_token}\n\n"
             yield "data: [DONE]\n\n"

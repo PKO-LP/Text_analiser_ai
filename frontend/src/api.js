@@ -45,7 +45,10 @@ export async function streamChat({ action, query, file_ids }, onToken) {
     buffer = lines.pop();
     for (const line of lines) {
       if (line.startsWith('data: ')) {
-        const data = line.slice(6).trim();
+        // УБРАН .trim() — он съедал пробелы в начале/конце токена!
+        // Убираем только \r в конце (CRLF)
+        let data = line.slice(6);
+        if (data.endsWith('\r')) data = data.slice(0, -1);
         if (data === '[DONE]') return;
         if (data.startsWith('[ERROR]')) throw new Error(data.replace('[ERROR]', '').trim());
         onToken(data);

@@ -38,8 +38,15 @@ export default function Chat({ selectedFileIds }) {
           file_ids: selectedFileIds.length ? selectedFileIds : null
         },
         (token) => {
-          // Раскрываем экранированные \n и \t из бэкенда обратно
-          const cleanToken = token.replace(/\\n/g, '\n').replace(/\\r/g, '\r');
+          // Раскрываем экранированные переносы из бэкенда
+          const cleanToken = token
+            .replace(/\\n/g, '\n')
+            .replace(/\\r/g, '\r')
+            .replace(/\\t/g, '\t');
+
+          // НЕ вставляем пробелы между токенами!
+          // Qwen сама присылает пробелы где нужно.
+          // Если вставлять принудительно — слова разрываются посередине.
           assistantText += cleanToken;
 
           setMessages(prev => {
