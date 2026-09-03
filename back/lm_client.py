@@ -49,7 +49,7 @@ class LMClient:
             await asyncio.sleep(0.1)  # Имитация задержки между токенами
 
         # ===== РЕАЛЬНЫЙ КОД (закомментирован, но готов к использованию) =====
-        """
+
         # Отправляем запрос в LM Studio через httpx с потоковым режимом
         async with httpx.AsyncClient() as client:
             # Отправляем POST-запрос на /chat/completions (OpenAI-совместимый эндпоинт)
@@ -80,7 +80,7 @@ class LMClient:
                         except json.JSONDecodeError:
                             # Если что-то пошло не так – игнорируем строку
                             continue
-        """
+
 
 # Создаём экземпляр клиента для использования в других модулях
 lm_client = LMClient()
