@@ -5,10 +5,12 @@ import os
 
 
 def init_db():
+    db_path_abs = os.path.abspath(config.DB_PATH)
+    db_dir = os.path.dirname(db_path_abs)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
 
-    os.makedirs(os.path.dirname(config.DB_PATH), exist_ok=True)
-
-    conn = sqlite3.connect(config.DB_PATH)
+    conn = sqlite3.connect(db_path_abs)
     cursor = conn.cursor()
 
     cursor.execute("""
