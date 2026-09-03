@@ -2,7 +2,7 @@ import os
 import pypdfium2 as pdfium
 from typing import List, AsyncGenerator
 from config import config
-from database import save_chunks, search_chunks, update_file_status
+from database import save_chunks, search_chunks, update_file_status, add_file
 from lm_client import lm_client
 
 
@@ -24,12 +24,13 @@ class RAGEngine:
                 if last_space > start + chunk_size // 2:
                     end = last_space + 1
 
-            chunks.append(text[start:end].strip())
+            chunk = text[start:end].strip()
+            if chunk:
+                chunks.append(chunk)
 
-            if end < text_len:
-                start = end - overlap
-            else:
+            if end >= text_len:
                 break
+            start = end - overlap
 
         return chunks
 
@@ -38,13 +39,11 @@ class RAGEngine:
         """Извлекает текст из PDF через pypdfium2."""
         text = ""
         doc = pdfium.PdfDocument(file_path)
-
         for page in doc:
             textpage = page.get_textpage()
             page_text = textpage.get_text_range()
             if page_text:
                 text += page_text + "\n"
-
         return text
 
     @staticmethod
@@ -55,8 +54,6 @@ class RAGEngine:
 
     async def process_file(self, file_path: str, filename: str) -> int:
         """Полный цикл обработки файла."""
-        from database import add_file, update_file_status, save_chunks
-
         file_id = await add_file(filename)
 
         try:
@@ -99,16 +96,10 @@ class RAGEngine:
 
         # Шаг 1: выбираем чанки
         if action == "summary":
-            # Для сводки берём топ-K чанков (по всем файлам или выбранным)
-            if file_ids:
-                # Пока нет фильтрации по file_ids в БД, берём все и отфильтруем вручную
-                results = await search_chunks("a", top_k=50)  # 'a' есть почти везде
-                results = [r for r in results if r["file_id"] in file_ids][:config.TOP_K]
-            else:
-                # Берём первые top_k чанков из всех документов
-                results = await search_chunks("a", top_k=config.TOP_K)
+            # Для сводки берем первые top_k чанков из всех документов
+            # (пустой MATCH в FTS5 ломается, поэтому ищем по букве "а" — она есть в любом тексте)
+            results = await search_chunks("а", top_k=config.TOP_K)
         else:
-            # Поиск по контексту — обычный FTS
             results = await search_chunks(query, top_k=config.TOP_K)
 
         if not results:
@@ -120,7 +111,7 @@ class RAGEngine:
         for r in results:
             context_parts.append(f"[Файл {r['file_id']}, фрагмент {r['chunk_index']}] {r['content']}")
         context = "\n\n".join(context_parts)
-        
+
         # Шаг 3: формируем промпт
         if action == "summary":
             prompt = f"Проанализируй следующий текст и выдели основные темы и ключевые идеи:\n\n{context}"
@@ -138,5 +129,5 @@ class RAGEngine:
         async for token in lm_client.stream_completion(prompt):
             yield token
 
-# Единый экземпляр
+
 rag_engine = RAGEngine()

@@ -1,7 +1,7 @@
-import sqlite3              
-import aiosqlite     
-from config import config 
-import os               
+import sqlite3
+import aiosqlite
+from config import config
+import os
 
 
 def init_db():
@@ -45,7 +45,6 @@ def init_db():
 
 
 async def add_file(filename: str) -> int:
-
     async with aiosqlite.connect(config.DB_PATH) as db:
         cursor = await db.execute(
             "INSERT INTO files (filename, status) VALUES (?, ?)",
@@ -56,7 +55,6 @@ async def add_file(filename: str) -> int:
 
 
 async def update_file_status(file_id: int, status: str):
-
     async with aiosqlite.connect(config.DB_PATH) as db:
         await db.execute(
             "UPDATE files SET status = ? WHERE id = ?",
@@ -66,7 +64,6 @@ async def update_file_status(file_id: int, status: str):
 
 
 async def get_file(file_id: int) -> dict | None:
-
     async with aiosqlite.connect(config.DB_PATH) as db:
         async with db.execute(
             "SELECT id, filename, status FROM files WHERE id = ?", (file_id,)
@@ -78,7 +75,6 @@ async def get_file(file_id: int) -> dict | None:
 
 
 async def get_files() -> list[dict]:
-
     async with aiosqlite.connect(config.DB_PATH) as db:
         async with db.execute(
             "SELECT id, filename, status FROM files ORDER BY created_at DESC"
@@ -88,15 +84,12 @@ async def get_files() -> list[dict]:
 
 
 async def save_chunks(file_id: int, chunks: list[str]):
-
     async with aiosqlite.connect(config.DB_PATH) as db:
         for idx, chunk in enumerate(chunks):
-            # Сохраняем в основную таблицу
             await db.execute(
                 "INSERT INTO chunks (file_id, chunk_index, content) VALUES (?, ?, ?)",
                 (file_id, idx, chunk)
             )
-            # Дублируем в FTS5 (для поиска)
             await db.execute(
                 "INSERT INTO fts_chunks (content, file_id, chunk_index) VALUES (?, ?, ?)",
                 (chunk, file_id, idx)
@@ -105,6 +98,9 @@ async def save_chunks(file_id: int, chunks: list[str]):
 
 
 async def search_chunks(query: str, top_k: int = 5) -> list[dict]:
+    # Защита: пустой MATCH ломает FTS5
+    if not query or not query.strip():
+        return []
 
     async with aiosqlite.connect(config.DB_PATH) as db:
         sql = """

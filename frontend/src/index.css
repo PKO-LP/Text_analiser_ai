@@ -161,6 +161,7 @@ body {
   border-color: rgba(218, 54, 51, 0.4);
 }
 
+/* КЛЮЧЕВОЕ: white-space: pre-wrap сохраняет переносы и пробелы */
 .bubble {
   max-width: 85%;
   padding: 14px 18px;
@@ -183,13 +184,6 @@ body {
 
 .message.assistant .bubble {
   border-bottom-left-radius: 4px;
-}
-
-pre {
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  font-family: inherit;
-  margin: 0;
 }
 
 .cursor {

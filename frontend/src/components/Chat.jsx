@@ -38,22 +38,8 @@ export default function Chat({ selectedFileIds }) {
           file_ids: selectedFileIds.length ? selectedFileIds : null
         },
         (token) => {
-          // 1. Раскрываем экранированные \n и \t (если пришли как текст)
-          let cleanToken = token
-            .replace(/\\n/g, '\n')
-            .replace(/\\t/g, '\t');
-
-          // 2. Если токен не начинается с пробела/переноса, а предыдущий текст не заканчивается пробелом —
-          // вставляем пробел, чтобы слова не слипались
-          if (assistantText.length > 0 && cleanToken.length > 0) {
-            const lastChar = assistantText.slice(-1);
-            const firstChar = cleanToken[0];
-            const needSpace = !/\s/.test(lastChar) && !/\s/.test(firstChar) && !/^[.,;:!?)\]}]/.test(firstChar);
-            if (needSpace) {
-              assistantText += ' ';
-            }
-          }
-
+          // Раскрываем экранированные \n и \t из бэкенда обратно
+          const cleanToken = token.replace(/\\n/g, '\n').replace(/\\r/g, '\r');
           assistantText += cleanToken;
 
           setMessages(prev => {
