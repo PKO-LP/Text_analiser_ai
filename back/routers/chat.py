@@ -33,13 +33,19 @@ async def analyze(request: ChatRequest):
     else:
         search_query = request.query
 
-    async def generate():
+async def generate():
+    try:
         async for token in rag_engine.stream_answer(
             action=request.action,
-            query=search_query,
+            query=request.query,
             file_ids=request.file_ids
         ):
-            yield f"data: {token}\n\n"
+            # Экранируем \n и \r, чтобы не ломать SSE-протокол
+            safe_token = token.replace('\n', '\n').replace('\r', '\r')
+            yield f"data: {safe_token}\n\n"
+        yield "data: [DONE]\n\n"
+    except Exception as e:
+        yield f"data: [ERROR] {str(e)}\n\n"
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
