@@ -5,5 +5,13 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: true, // доступ в локальной сети
+    htttps: true,
+  proxy: {
+      '/files': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/files/, '/files')
+      }
+    }
   },
 })
